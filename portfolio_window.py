@@ -15,12 +15,16 @@ class PortfolioWindow:
         self.parent = parent
         self.window = tk.Toplevel(parent)
         self.window.title("Мой портфель акций")
-        self.window.geometry("1000x600")
-        self.window.minsize(800, 400)
+        self.window.geometry("1100x600")
+        self.window.minsize(900, 400)
         
         # Данные портфеля
         self.portfolio_data = []
         self.load_portfolio_data()
+        
+        # Переменные для ввода продажи
+        self.sell_quantity_var = tk.StringVar()
+        self.sell_price_var = tk.StringVar()
         
         # Создание интерфейса
         self.create_widgets()
@@ -41,12 +45,11 @@ class PortfolioWindow:
                                font=("Arial", 16, "bold"))
         title_label.pack(pady=(0, 10))
         
-        # Панель управления
-        control_frame = ttk.Frame(main_frame)
-        control_frame.pack(fill=tk.X, pady=(0, 10))
+        # Панель управления - добавление акций
+        add_frame = ttk.LabelFrame(main_frame, text="Добавление акций", padding="10")
+        add_frame.pack(fill=tk.X, pady=(0, 10))
         
-        # Поля для ввода новой акции
-        input_frame = ttk.Frame(control_frame)
+        input_frame = ttk.Frame(add_frame)
         input_frame.pack(fill=tk.X, pady=5)
         
         ttk.Label(input_frame, text="Тикер:").pack(side=tk.LEFT, padx=2)
@@ -64,12 +67,39 @@ class PortfolioWindow:
         self.buy_price_entry = ttk.Entry(input_frame, textvariable=self.buy_price_var, width=10)
         self.buy_price_entry.pack(side=tk.LEFT, padx=2)
         
-        ttk.Button(input_frame, text="Добавить акцию", 
+        ttk.Button(input_frame, text="Купить/Добавить", 
                   command=self.add_stock).pack(side=tk.LEFT, padx=10)
         
+        # Панель управления - продажа акций
+        sell_frame = ttk.LabelFrame(main_frame, text="Продажа акций", padding="10")
+        sell_frame.pack(fill=tk.X, pady=(0, 10))
+        
+        sell_input_frame = ttk.Frame(sell_frame)
+        sell_input_frame.pack(fill=tk.X, pady=5)
+        
+        ttk.Label(sell_input_frame, text="Тикер:").pack(side=tk.LEFT, padx=2)
+        self.sell_ticker_var = tk.StringVar()
+        self.sell_ticker_combo = ttk.Combobox(sell_input_frame, textvariable=self.sell_ticker_var, 
+                                             width=10, state="readonly")
+        self.sell_ticker_combo.pack(side=tk.LEFT, padx=2)
+        
+        ttk.Label(sell_input_frame, text="Количество для продажи:").pack(side=tk.LEFT, padx=2)
+        self.sell_quantity_entry = ttk.Entry(sell_input_frame, textvariable=self.sell_quantity_var, width=10)
+        self.sell_quantity_entry.pack(side=tk.LEFT, padx=2)
+        
+        ttk.Label(sell_input_frame, text="Цена продажи:").pack(side=tk.LEFT, padx=2)
+        self.sell_price_entry = ttk.Entry(sell_input_frame, textvariable=self.sell_price_var, width=10)
+        self.sell_price_entry.pack(side=tk.LEFT, padx=2)
+        
+        ttk.Button(sell_input_frame, text="Продать", 
+                  command=self.sell_stock).pack(side=tk.LEFT, padx=10)
+        
+        # Обновляем комбобокс при изменении портфеля
+        self.update_sell_ticker_combo()
+        
         # Кнопки управления
-        button_frame = ttk.Frame(control_frame)
-        button_frame.pack(fill=tk.X, pady=5)
+        button_frame = ttk.Frame(main_frame)
+        button_frame.pack(fill=tk.X, pady=(0, 10))
         
         ttk.Button(button_frame, text="Обновить все цены", 
                   command=self.update_all_prices).pack(side=tk.LEFT, padx=5)
@@ -79,8 +109,8 @@ class PortfolioWindow:
                   command=self.clear_portfolio).pack(side=tk.LEFT, padx=5)
         ttk.Button(button_frame, text="Экспорт в CSV", 
                   command=self.export_to_csv).pack(side=tk.RIGHT, padx=5)
-        ttk.Button(button_frame, text="Импорт из CSV", 
-                  command=self.import_from_csv).pack(side=tk.RIGHT, padx=5)
+        ttk.Button(button_frame, text="История операций", 
+                  command=self.show_transaction_history).pack(side=tk.RIGHT, padx=5)
         
         # Таблица портфеля
         table_frame = ttk.Frame(main_frame)
@@ -99,6 +129,199 @@ class PortfolioWindow:
         
         # Обновление статистики
         self.update_statistics()
+    
+    def update_sell_ticker_combo(self):
+        """Обновление списка тикеров для продажи"""
+        tickers = [stock['ticker'] for stock in self.portfolio_data]
+        self.sell_ticker_combo['values'] = tickers
+        if tickers:
+            self.sell_ticker_combo.set(tickers[0])
+    
+    def sell_stock(self):
+        """Продажа акций из портфеля"""
+        ticker = self.sell_ticker_var.get().strip().upper()
+        quantity_str = self.sell_quantity_var.get().strip()
+        price_str = self.sell_price_var.get().strip()
+        
+        if not ticker or not quantity_str or not price_str:
+            messagebox.showerror("Ошибка", "Заполните все поля для продажи")
+            return
+        
+        try:
+            quantity_to_sell = int(quantity_str)
+            sell_price = float(price_str)
+            
+            if quantity_to_sell <= 0 or sell_price <= 0:
+                messagebox.showerror("Ошибка", "Количество и цена должны быть положительными")
+                return
+            
+            # Ищем акцию в портфеле
+            stock_to_sell = None
+            for stock in self.portfolio_data:
+                if stock['ticker'] == ticker:
+                    stock_to_sell = stock
+                    break
+            
+            if not stock_to_sell:
+                messagebox.showerror("Ошибка", f"Акция {ticker} не найдена в портфеле")
+                return
+            
+            current_quantity = stock_to_sell['quantity']
+            
+            if quantity_to_sell > current_quantity:
+                messagebox.showerror("Ошибка", 
+                                   f"Недостаточно акций для продажи. Доступно: {current_quantity}")
+                return
+            
+            # Подтверждение продажи
+            confirm_msg = (f"Подтвердите продажу {quantity_to_sell} акций {ticker} "
+                          f"по цене {sell_price:.2f} руб?\n\n"
+                          f"Выручка от продажи: {quantity_to_sell * sell_price:.2f} руб")
+            
+            if not messagebox.askyesno("Подтверждение продажи", confirm_msg):
+                return
+            
+            # Регистрируем операцию продажи
+            self.record_transaction(ticker, 'sell', quantity_to_sell, sell_price)
+            
+            # Обновляем количество акций
+            if quantity_to_sell == current_quantity:
+                # Продали все акции - удаляем из портфеля
+                self.portfolio_data.remove(stock_to_sell)
+                messagebox.showinfo("Успех", f"Все акции {ticker} проданы и удалены из портфеля")
+            else:
+                # Продали часть акций - обновляем количество
+                stock_to_sell['quantity'] = current_quantity - quantity_to_sell
+                # Пересчитываем значения
+                self.calculate_stock_values(stock_to_sell)
+                messagebox.showinfo("Успех", 
+                                  f"Продано {quantity_to_sell} акций {ticker}. "
+                                  f"Осталось: {stock_to_sell['quantity']}")
+            
+            # Обновляем интерфейс
+            self.refresh_table()
+            self.update_sell_ticker_combo()
+            self.update_statistics()
+            self.save_portfolio_data()
+            
+            # Очищаем поля продажи
+            self.sell_quantity_var.set("")
+            self.sell_price_var.set("")
+            
+        except ValueError:
+            messagebox.showerror("Ошибка", "Введите корректные числовые значения")
+    
+    def record_transaction(self, ticker, operation, quantity, price):
+        """Запись операции в историю транзакций"""
+        try:
+            # Загружаем существующую историю
+            history = []
+            if os.path.exists('transaction_history.json'):
+                with open('transaction_history.json', 'r', encoding='utf-8') as f:
+                    history = json.load(f)
+            
+            # Добавляем новую операцию
+            transaction = {
+                'date': datetime.now().isoformat(),
+                'ticker': ticker,
+                'operation': operation,  # 'buy' или 'sell'
+                'quantity': quantity,
+                'price': price,
+                'total': quantity * price
+            }
+            
+            history.append(transaction)
+            
+            # Сохраняем историю
+            with open('transaction_history.json', 'w', encoding='utf-8') as f:
+                json.dump(history, f, ensure_ascii=False, indent=2)
+                
+        except Exception as e:
+            print(f"Ошибка сохранения истории транзакций: {e}")
+    
+    def show_transaction_history(self):
+        """Показать историю транзакций"""
+        try:
+            history = []
+            if os.path.exists('transaction_history.json'):
+                with open('transaction_history.json', 'r', encoding='utf-8') as f:
+                    history = json.load(f)
+            
+            if not history:
+                messagebox.showinfo("История операций", "История операций пуста")
+                return
+            
+            # Создаем окно истории
+            history_window = tk.Toplevel(self.window)
+            history_window.title("История операций")
+            history_window.geometry("800x400")
+            
+            # Таблица истории
+            table_frame = ttk.Frame(history_window, padding="10")
+            table_frame.pack(fill=tk.BOTH, expand=True)
+            
+            columns = ("date", "ticker", "operation", "quantity", "price", "total")
+            tree = ttk.Treeview(table_frame, columns=columns, show="headings", height=15)
+            
+            headers = {
+                "date": "Дата и время",
+                "ticker": "Тикер",
+                "operation": "Операция",
+                "quantity": "Количество",
+                "price": "Цена",
+                "total": "Сумма"
+            }
+            
+            for col in columns:
+                tree.heading(col, text=headers[col])
+                tree.column(col, width=120, minwidth=100)
+            
+            # Заполняем данными
+            for transaction in reversed(history[-100:]):  # Последние 100 операций
+                operation_text = "Покупка" if transaction['operation'] == 'buy' else "Продажа"
+                operation_color = "green" if transaction['operation'] == 'buy' else "red"
+                
+                date_obj = datetime.fromisoformat(transaction['date'])
+                date_str = date_obj.strftime("%d.%m.%Y %H:%M")
+                
+                tree.insert("", tk.END, values=(
+                    date_str,
+                    transaction['ticker'],
+                    operation_text,
+                    transaction['quantity'],
+                    f"{transaction['price']:.2f}",
+                    f"{transaction['total']:.2f}"
+                ))
+            
+            # Прокрутка
+            v_scroll = ttk.Scrollbar(table_frame, orient=tk.VERTICAL, command=tree.yview)
+            tree.configure(yscrollcommand=v_scroll.set)
+            
+            tree.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+            v_scroll.pack(side=tk.RIGHT, fill=tk.Y)
+            
+            # Кнопки
+            button_frame = ttk.Frame(history_window)
+            button_frame.pack(fill=tk.X, pady=10)
+            
+            ttk.Button(button_frame, text="Очистить историю", 
+                      command=lambda: self.clear_transaction_history(history_window)).pack(side=tk.LEFT, padx=5)
+            ttk.Button(button_frame, text="Закрыть", 
+                      command=history_window.destroy).pack(side=tk.RIGHT, padx=5)
+            
+        except Exception as e:
+            messagebox.showerror("Ошибка", f"Не удалось загрузить историю операций: {e}")
+    
+    def clear_transaction_history(self, parent_window):
+        """Очистка истории транзакций"""
+        if messagebox.askyesno("Подтверждение", "Очистить всю историю операций?"):
+            try:
+                with open('transaction_history.json', 'w', encoding='utf-8') as f:
+                    json.dump([], f)
+                messagebox.showinfo("Успех", "История операций очищена")
+                parent_window.destroy()
+            except Exception as e:
+                messagebox.showerror("Ошибка", f"Не удалось очистить историю: {e}")
     
     def create_portfolio_table(self, parent):
         """Создание таблицы портфеля"""
@@ -152,6 +375,9 @@ class PortfolioWindow:
         
         # Заполняем данными
         for stock in self.portfolio_data:
+            profit = stock.get('profit', 0)
+            profit_percent = stock.get('profit_percent', 0)
+            
             self.tree.insert("", tk.END, values=(
                 stock['ticker'],
                 stock.get('name', ''),
@@ -160,8 +386,8 @@ class PortfolioWindow:
                 f"{stock.get('current_price', 0):.2f}",
                 f"{stock.get('current_value', 0):.2f}",
                 f"{stock.get('buy_value', 0):.2f}",
-                f"{stock.get('profit', 0):.2f}",
-                f"{stock.get('profit_percent', 0):.2f}%"
+                f"{profit:+.2f}",
+                f"{profit_percent:+.2f}%"
             ))
     
     def add_stock(self):
@@ -217,12 +443,16 @@ class PortfolioWindow:
                     existing_stock['quantity'] = quantity
                     existing_stock['buy_price'] = buy_price
                 
+                # Регистрируем операцию покупки
+                self.record_transaction(ticker, 'buy', quantity, buy_price)
+                
                 # Обновляем данные акции
                 self.calculate_stock_values(existing_stock)
                 self.refresh_table()
                 self.update_statistics()
                 self.save_portfolio_data()
                 self.clear_input_fields()
+                self.update_sell_ticker_combo()
                 
                 messagebox.showinfo("Успех", f"Акция {ticker} обновлена в портфеле")
                 return
@@ -235,6 +465,9 @@ class PortfolioWindow:
                 'added_date': datetime.now().isoformat()
             }
             
+            # Регистрируем операцию покупки
+            self.record_transaction(ticker, 'buy', quantity, buy_price)
+            
             # Получаем текущую цену и название
             self.update_stock_price(stock_data)
             self.portfolio_data.append(stock_data)
@@ -243,6 +476,7 @@ class PortfolioWindow:
             self.update_statistics()
             self.save_portfolio_data()
             self.clear_input_fields()
+            self.update_sell_ticker_combo()
             
             messagebox.showinfo("Успех", f"Акция {ticker} добавлена в портфель")
             
@@ -371,6 +605,7 @@ class PortfolioWindow:
         self.refresh_table()
         self.update_statistics()
         self.save_portfolio_data()
+        self.update_sell_ticker_combo()
         messagebox.showinfo("Успех", "Акции удалены из портфеля")
     
     def clear_portfolio(self):
@@ -383,6 +618,7 @@ class PortfolioWindow:
             self.refresh_table()
             self.update_statistics()
             self.save_portfolio_data()
+            self.update_sell_ticker_combo()
     
     def update_statistics(self):
         """Обновление статистики портфеля"""
@@ -400,11 +636,7 @@ class PortfolioWindow:
         stats_text = (f"Общая стоимость: {total_current_value:,.2f} руб | "
                      f"Прибыль: {total_profit:,.2f} руб ({total_profit_percent:.2f}%)")
         
-        self.stats_label.config(text=stats_text)
-        
-        # Динамическое изменение цвета прибыли
-        if hasattr(self.stats_label, 'config'):
-            self.stats_label.config(foreground=profit_color)
+        self.stats_label.config(text=stats_text, foreground=profit_color)
     
     def load_portfolio_data(self):
         """Загрузка данных портфеля из файла"""
@@ -464,7 +696,6 @@ class PortfolioWindow:
     
     def import_from_csv(self):
         """Импорт портфеля из CSV"""
-        # Реализация импорта может быть добавлена при необходимости
         messagebox.showinfo("Информация", "Функция импорта будет реализована в следующей версии")
     
     def focus(self):
