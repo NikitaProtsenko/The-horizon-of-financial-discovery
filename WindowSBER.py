@@ -39,10 +39,11 @@ class StockMonitor:
         """Создание верхнего меню для навигации между окнами"""
         menubar = tk.Menu(self.root)
         self.root.config(menu=menubar)
-        
+    
         # Меню "Файл"
         file_menu = tk.Menu(menubar, tearoff=0)
         menubar.add_cascade(label="Файл", menu=file_menu)
+        file_menu.add_command(label="Мой портфель", command=self.open_portfolio)
         file_menu.add_command(label="Калькулятор IBO", command=self.open_calculator)
         file_menu.add_separator()
         file_menu.add_command(label="Выход", command=self.root.quit)
@@ -225,6 +226,9 @@ class StockMonitor:
         
         ttk.Button(button_frame, text="Очистить график", 
                   command=self.clear_chart).pack(side=tk.LEFT, padx=5)
+                  
+        ttk.Button(button_frame, text="Мой портфель", 
+                  command=self.open_portfolio).pack(side=tk.LEFT, padx=5)
         
         # Кнопка открытия калькулятора
         ttk.Button(button_frame, text="Калькулятор стоимости", 
@@ -501,3 +505,7 @@ class StockMonitor:
                 
         except Exception as e:
             messagebox.showerror("Ошибка", f"Не удалось экспортировать данные: {e}")
+    def open_portfolio(self):
+        """Создание нового окна портфеля"""
+        from portfolio_window import PortfolioWindow
+        portfolio = PortfolioWindow(self.root)
