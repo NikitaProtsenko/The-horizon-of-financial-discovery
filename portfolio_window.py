@@ -1,7 +1,6 @@
 # portfolio_window.py
 import tkinter as tk
 from tkinter import ttk, messagebox
-import requests
 import json
 import os
 from datetime import datetime
@@ -11,11 +10,12 @@ class PortfolioWindow:
     Окно для управления портфелем акций с автоматическим обновлением цен с MOEX
     """
     
-    def __init__(self, parent):
+    def __init__(self, parent, data_handler=None):
         self.parent = parent
+        self.data_handler = data_handler
         self.window = tk.Toplevel(parent)
         self.window.title("Мой портфель акций")
-        self.window.geometry("1100x600")
+        self.window.geometry("1100x650")
         self.window.minsize(900, 400)
         
         # Данные портфеля
@@ -494,31 +494,50 @@ class PortfolioWindow:
         """Обновление текущей цены акции с MOEX"""
         try:
             ticker = stock_data['ticker']
-            url = f"https://iss.moex.com/iss/engines/stock/markets/shares/boards/TQBR/securities/{ticker}.json"
             
-            response = requests.get(url, timeout=10)
-            if response.status_code == 200:
-                data = response.json()
-                market_data = data['marketdata']['data']
+            # Используем data_handler если он доступен
+            if self.data_handler:
+                # Сохраняем текущий тикер
+                original_ticker = self.data_handler.ticker
+                # Временно меняем тикер
+                self.data_handler.set_ticker(ticker)
+                data = self.data_handler.get_stock_data()
+                # Восстанавливаем оригинальный тикер
+                self.data_handler.set_ticker(original_ticker)
                 
-                if market_data:
-                    stock_info = market_data[0]
-                    current_price = stock_info[12]  # LAST цена
+                if data['success']:
+                    stock_data['current_price'] = data['price']
+                    stock_data['name'] = ticker  # MOEX API не всегда возвращает название
+                    self.calculate_stock_values(stock_data)
+                    return True
+            else:
+                # Альтернативный способ получения данных
+                import requests
+                url = f"https://iss.moex.com/iss/engines/stock/markets/shares/boards/TQBR/securities/{ticker}.json"
+                
+                response = requests.get(url, timeout=10)
+                if response.status_code == 200:
+                    data = response.json()
+                    market_data = data['marketdata']['data']
                     
-                    if current_price is None:
-                        current_price = stock_info[3]  # LCURRENTPRICE
-                    
-                    if current_price is not None:
-                        stock_data['current_price'] = current_price
+                    if market_data:
+                        stock_info = market_data[0]
+                        current_price = stock_info[12]  # LAST цена
                         
-                        # Получаем название акции
-                        securities_data = data['securities']['data']
-                        if securities_data:
-                            stock_data['name'] = securities_data[0][2]  # SHORTNAME
+                        if current_price is None:
+                            current_price = stock_info[3]  # LCURRENTPRICE
                         
-                        # Пересчитываем значения
-                        self.calculate_stock_values(stock_data)
-                        return True
+                        if current_price is not None:
+                            stock_data['current_price'] = current_price
+                            
+                            # Получаем название акции
+                            securities_data = data['securities']['data']
+                            if securities_data:
+                                stock_data['name'] = securities_data[0][2]  # SHORTNAME
+                            
+                            # Пересчитываем значения
+                            self.calculate_stock_values(stock_data)
+                            return True
             
             # Если не удалось получить данные, используем цену покупки
             stock_data['current_price'] = stock_data['buy_price']

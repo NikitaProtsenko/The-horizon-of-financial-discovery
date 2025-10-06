@@ -1,5 +1,5 @@
 # main.py
-from WindowSBER import StockMonitor
+from stock_monitor import StockMonitor
 import tkinter as tk
 
 def main():

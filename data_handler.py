@@ -7,17 +7,30 @@ import random
 class DataHandler:
     """
     Класс для обработки данных об акциях.
-    Получает данные из внешних источников и обрабатывает их.
+    Получает реальные данные с Московской биржи.
     """
     
-    def __init__(self):
+    def __init__(self, ticker="SBER"):
+        self.ticker = ticker.upper()
         # URL для получения данных об акциях
-        self.stock_url = "https://iss.moex.com/iss/engines/stock/markets/shares/boards/TQBR/securities/SBER.json"
+        self.stock_url = f"https://iss.moex.com/iss/engines/stock/markets/shares/boards/TQBR/securities/{self.ticker}.json"
         self.moscow_tz = pytz.timezone('Europe/Moscow')
         
         # Переменные для хранения предыдущих данных
         self.previous_price = None
         self.previous_time = None
+        
+        # Кэш для исторических данных
+        self.historical_data = []
+        
+    def set_ticker(self, ticker):
+        """Изменение тикера акции"""
+        self.ticker = ticker.upper()
+        self.stock_url = f"https://iss.moex.com/iss/engines/stock/markets/shares/boards/TQBR/securities/{self.ticker}.json"
+        # Сбрасываем предыдущие данные при смене тикера
+        self.previous_price = None
+        self.previous_time = None
+        self.historical_data = []
         
     def get_moscow_time(self):
         """Получение текущего московского времени"""
@@ -28,49 +41,51 @@ class DataHandler:
         if current_time is None:
             current_time = self.get_moscow_time()
         
-        # Торги на Московской бирже обычно с 10:00 до 18:40 по московскому времени
-        # В будние дни, кроме праздников
-        market_open = time(10, 0)
-        market_close = time(18, 40)
+        # Торги на Московской бирже: пн-пт с 9:30 до 19:00
+        market_open = time(9, 30)
+        market_close = time(19, 0)
         
-        # Проверяем время
         current_time_only = current_time.time()
-        is_weekday = current_time.weekday() < 8  # Пн-Пт
+        current_weekday = current_time.weekday()
+        is_weekday = current_weekday < 5  # Пн-Пт (0-4)
         
         return (is_weekday and market_open <= current_time_only <= market_close)
     
-    def get_stock_data(self):
-        """Получение данных об акциях SBER"""
+    def get_real_time_data(self):
+        """Получение реальных данных с MOEX в реальном времени"""
         try:
             response = requests.get(self.stock_url, timeout=10)
             
             if response.status_code == 200:
                 data = response.json()
                 
-                # Извлекаем данные из ответа
+                # Получаем рыночные данные
                 market_data = data['marketdata']['data']
-                if market_data:
-                    stock_data = market_data[0]
+                if market_data and market_data[0]:
+                    stock_info = market_data[0]
                     
-                    # Получаем текущую цену
-                    current_price = stock_data[12]  # LAST цена
+                    # Получаем базовую информацию
+                    securities_data = data['securities']['data']
+                    security_info = securities_data[0] if securities_data else []
                     
-                    # Если текущая цена не доступна, используем предыдущую закрытую цену
+                    # Извлекаем реальные данные (правильные индексы для MOEX API)
+                    current_price = stock_info[12] if len(stock_info) > 12 else None  # LAST
+                    
+                    # Если нет последней цены, используем текущую оценку
                     if current_price is None:
-                        current_price = stock_data[3]  # LCURRENTPRICE
+                        current_price = stock_info[3] if len(stock_info) > 3 else None  # LCURRENTPRICE
                     
-                    # Если все еще None, используем случайную цену в диапазоне
-                    if current_price is None:
-                        current_price = round(random.uniform(250, 350), 2)
+                    # Получаем другие показатели
+                    open_price = stock_info[9] if len(stock_info) > 9 else None  # OPEN
+                    high_price = stock_info[10] if len(stock_info) > 10 else None  # HIGH
+                    low_price = stock_info[11] if len(stock_info) > 11 else None  # LOW
+                    volume = stock_info[27] if len(stock_info) > 27 else 0  # VOLUME
                     
-                    # Получаем объем торгов
-                    volume = stock_data[27] or 0  # VOLUME
+                    # Время обновления
+                    update_time = stock_info[34] if len(stock_info) > 34 else None  # SYSTEMTIME
                     
-                    # Получаем время последней сделки
-                    update_time = stock_data[34]  # SYSTEMTIME
                     if update_time:
                         try:
-                            # Парсим время из формата биржи
                             trade_time = datetime.strptime(update_time, '%Y-%m-%d %H:%M:%S')
                             trade_time = self.moscow_tz.localize(trade_time)
                         except:
@@ -78,66 +93,114 @@ class DataHandler:
                     else:
                         trade_time = self.get_moscow_time()
                     
-                    # Рассчитываем изменение цены
+                    # Если текущей цены нет, но есть цена открытия, используем ее
+                    if current_price is None and open_price is not None:
+                        current_price = open_price
+                    
+                    # Если все еще нет данных, возвращаем ошибку
+                    if current_price is None:
+                        return self.get_fallback_data()
+                    
+                    # Рассчитываем изменения
                     change_absolute = 0
                     change_percent = 0
                     
-                    if self.previous_price is not None and self.previous_price != 0:
-                        change_absolute = current_price - self.previous_price
-                        change_percent = (change_absolute / self.previous_price) * 100
+                    if open_price is not None and open_price != 0:
+                        change_absolute = current_price - open_price
+                        change_percent = (change_absolute / open_price) * 100
                     
-                    # Сохраняем текущую цену как предыдущую для следующего обновления
+                    # Сохраняем для истории
+                    if self.previous_price is not None:
+                        self.historical_data.append({
+                            'time': trade_time,
+                            'price': current_price,
+                            'volume': volume
+                        })
+                    
                     self.previous_price = current_price
                     self.previous_time = trade_time
                     
                     return {
                         'success': True,
+                        'ticker': self.ticker,
                         'price': current_price,
                         'time': trade_time,
                         'volume': volume,
                         'change_absolute': change_absolute,
                         'change_percent': change_percent,
-                        'high': stock_data[10] or current_price * 1.01,  # HIGH
-                        'low': stock_data[11] or current_price * 0.99,   # LOW
-                        'open': stock_data[9] or current_price * 0.995,  # OPEN
-                        'is_historical': False
+                        'high': high_price if high_price else current_price,
+                        'low': low_price if low_price else current_price,
+                        'open': open_price if open_price else current_price,
+                        'is_historical': False,
+                        'is_fallback': False,
+                        'data_source': 'MOEX Real-time'
                     }
             
-            # Если запрос не удался, возвращаем фиксированные данные
             return self.get_fallback_data()
             
         except Exception as e:
-            print(f"Ошибка получения данных: {e}")
+            print(f"Ошибка получения реальных данных для {self.ticker}: {e}")
             return self.get_fallback_data()
     
+    def get_historical_data(self, days=30):
+        """Получение исторических данных за указанное количество дней"""
+        try:
+            # URL для исторических данных
+            hist_url = f"https://iss.moex.com/iss/history/engines/stock/markets/shares/boards/TQBR/securities/{self.ticker}.json?from={(datetime.now() - timedelta(days=days)).strftime('%Y-%m-%d')}"
+            
+            response = requests.get(hist_url, timeout=10)
+            
+            if response.status_code == 200:
+                data = response.json()
+                historical_points = data['history']['data']
+                
+                historical_data = []
+                for point in historical_points:
+                    try:
+                        date_str = point[1]  # TRADEDATE
+                        close_price = point[11]  # CLOSE
+                        
+                        if date_str and close_price:
+                            trade_date = datetime.strptime(date_str, '%Y-%m-%d')
+                            trade_date = self.moscow_tz.localize(trade_date)
+                            historical_data.append((trade_date, close_price))
+                    except:
+                        continue
+                
+                return historical_data
+            
+            return []
+            
+        except Exception as e:
+            print(f"Ошибка получения исторических данных для {self.ticker}: {e}")
+            return []
+    
+    def get_stock_data(self):
+        """Основной метод получения данных - использует реальные данные"""
+        return self.get_real_time_data()
+    
     def get_fallback_data(self):
-        """Возвращает фиксированные данные в случае ошибки"""
+        """Резервные данные только в случае полной недоступности MOEX"""
         current_time = self.get_moscow_time()
         
-        # Генерируем реалистичную цену с небольшими колебаниями
+        # Используем предыдущую цену если есть, иначе базовую
         if self.previous_price is None:
-            base_price = 280.0  # Базовая цена SBER
+            base_price = 280.0
         else:
-            # Небольшое случайное изменение от предыдущей цены
-            change = random.uniform(-1.0, 1.0)
-            base_price = self.previous_price + change
-        
-        # Ограничиваем диапазон цен
-        base_price = max(250, min(350, base_price))
-        
-        # Сохраняем для следующего обновления
-        self.previous_price = base_price
-        self.previous_time = current_time
+            base_price = self.previous_price
         
         return {
-            'success': True,
+            'success': False,
+            'ticker': self.ticker,
             'price': base_price,
             'time': current_time,
-            'volume': random.randint(1000000, 5000000),
+            'volume': 0,
             'change_absolute': 0,
             'change_percent': 0,
-            'high': base_price * 1.02,
-            'low': base_price * 0.98,
-            'open': base_price * 0.995,
-            'is_fallback': True
+            'high': base_price,
+            'low': base_price,
+            'open': base_price,
+            'is_historical': False,
+            'is_fallback': True,
+            'data_source': 'Fallback'
         }
