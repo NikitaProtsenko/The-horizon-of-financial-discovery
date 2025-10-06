@@ -165,7 +165,7 @@ class PortfolioWindow:
             ))
     
     def add_stock(self):
-        """Добавление новой акции в портфель"""
+        """Добавление новой акции в портфель или обновление существующей"""
         ticker = self.ticker_var.get().strip().upper()
         quantity = self.quantity_var.get().strip()
         buy_price = self.buy_price_var.get().strip()
@@ -183,20 +183,51 @@ class PortfolioWindow:
                 return
             
             # Проверяем, есть ли уже такая акция
+            existing_stock = None
             for stock in self.portfolio_data:
                 if stock['ticker'] == ticker:
-                    if messagebox.askyesno("Подтверждение", 
-                                         f"Акция {ticker} уже есть в портфеле. Обновить данные?"):
-                        stock['quantity'] = quantity
-                        stock['buy_price'] = buy_price
-                        self.calculate_stock_values(stock)
-                        self.refresh_table()
-                        self.update_statistics()
-                        self.save_portfolio_data()
-                        self.clear_input_fields()
-                    return
+                    existing_stock = stock
+                    break
             
-            # Добавляем новую акцию
+            if existing_stock:
+                # Спрашиваем пользователя, что делать с существующей акцией
+                choice = messagebox.askyesnocancel(
+                    "Акция уже в портфеле", 
+                    f"Акция {ticker} уже есть в портфеле.\n\n"
+                    f"Текущее количество: {existing_stock['quantity']}\n"
+                    f"Новое количество: {quantity}\n\n"
+                    f"ДА - добавить к существующему количеству\n"
+                    f"НЕТ - заменить количество\n"
+                    f"ОТМЕНА - не добавлять"
+                )
+                
+                if choice is None:  # Отмена
+                    return
+                elif choice:  # Да - добавить к существующему
+                    # Рассчитываем среднюю цену покупки
+                    total_quantity = existing_stock['quantity'] + quantity
+                    total_cost = (existing_stock['quantity'] * existing_stock['buy_price'] + 
+                                quantity * buy_price)
+                    average_price = total_cost / total_quantity
+                    
+                    existing_stock['quantity'] = total_quantity
+                    existing_stock['buy_price'] = average_price
+                    
+                else:  # Нет - заменить количество и цену
+                    existing_stock['quantity'] = quantity
+                    existing_stock['buy_price'] = buy_price
+                
+                # Обновляем данные акции
+                self.calculate_stock_values(existing_stock)
+                self.refresh_table()
+                self.update_statistics()
+                self.save_portfolio_data()
+                self.clear_input_fields()
+                
+                messagebox.showinfo("Успех", f"Акция {ticker} обновлена в портфеле")
+                return
+            
+            # Добавляем новую акцию (если не найдена существующая)
             stock_data = {
                 'ticker': ticker,
                 'quantity': quantity,
