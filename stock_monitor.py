@@ -49,6 +49,7 @@ class StockMonitor:
         file_menu.add_command(label="Калькулятор IBO", command=self.open_calculator)
         file_menu.add_separator()
         file_menu.add_command(label="Выход", command=self.root.quit)
+        file_menu.add_command(label="Калькулятор Шарпа", command=self.open_sharpe_calculator)
         
         # Меню "Вид"
         view_menu = tk.Menu(menubar, tearoff=0)
@@ -272,7 +273,7 @@ class StockMonitor:
         # Кнопка открытия калькулятора
         ttk.Button(button_frame, text="Калькулятор стоимости", 
                   command=self.open_calculator).pack(side=tk.LEFT, padx=5)
-        
+        ttk.Button(button_frame, text="Коэффициент Шарпа", command=self.open_sharpe_calculator).pack(side=tk.LEFT, padx=5)
         # Добавляем кнопки управления масштабом для каждой вкладки
         self.chart_manager.setup_zoom_buttons(button_frame, 'intraday')
         self.chart_manager.setup_zoom_buttons(button_frame, 'daily')
@@ -564,6 +565,10 @@ class StockMonitor:
         from portfolio_window import PortfolioWindow
         PortfolioWindow(self.root, self.data_handler)
 
+    def open_sharpe_calculator(self):
+        """Создание калькулятора коэффициента Шарпа"""
+        from sharpe_calculator import SharpeCalculator
+        SharpeCalculator(self.root, self.data_handler)
 def main():
     """Запуск приложения"""
     root = tk.Tk()
