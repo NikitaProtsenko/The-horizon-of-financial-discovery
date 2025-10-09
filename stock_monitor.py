@@ -9,7 +9,7 @@ from datetime import datetime, timedelta
 from data_handler import DataHandler
 from chart_manager import ChartManager
 from calculator_window import CalculatorWindow
-
+from commission_manager import CommissionManager
 class StockMonitor:
     """
     Основной класс приложения для мониторинга акций.
@@ -47,9 +47,10 @@ class StockMonitor:
         file_menu.add_command(label="Сменить тикер", command=self.change_ticker)
         file_menu.add_command(label="Мой портфель", command=self.open_portfolio)
         file_menu.add_command(label="Калькулятор IBO", command=self.open_calculator)
+        file_menu.add_command(label="Калькулятор Шарпа", command=self.open_sharpe_calculator)
+        file_menu.add_command(label="Настройки комиссий", command=self.open_commission_settings)
         file_menu.add_separator()
         file_menu.add_command(label="Выход", command=self.root.quit)
-        file_menu.add_command(label="Калькулятор Шарпа", command=self.open_sharpe_calculator)
         
         # Меню "Вид"
         view_menu = tk.Menu(menubar, tearoff=0)
@@ -78,6 +79,16 @@ class StockMonitor:
         help_menu = tk.Menu(menubar, tearoff=0)
         menubar.add_cascade(label="Помощь", menu=help_menu)
         help_menu.add_command(label="О программе", command=self.show_about)
+   
+    
+    def open_commission_settings(self):
+        """Открытие настроек комиссий"""
+        if hasattr(self, 'portfolio_window') and self.portfolio_window:
+            self.portfolio_window.commission_manager.show_commission_settings()
+        else:
+            # Создаем временный менеджер комиссий
+            temp_manager = CommissionManager(self.root)
+            temp_manager.show_commission_settings()
         
     def change_ticker(self):
         """Смена тикера акции"""
