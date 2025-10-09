@@ -10,6 +10,7 @@ from data_handler import DataHandler
 from chart_manager import ChartManager
 from calculator_window import CalculatorWindow
 from commission_manager import CommissionManager
+from etf_portfolio_window import ETFPortfolioWindow
 class StockMonitor:
     """
     Основной класс приложения для мониторинга акций.
@@ -20,7 +21,7 @@ class StockMonitor:
         # Инициализация главного окна
         self.root = root
         self.root.title("Монитор акций")
-        self.root.geometry("1200x800")
+        self.root.geometry("1400x800")
         
         # Инициализация компонентов
         self.current_ticker = "SBER"  # Тикер по умолчанию
@@ -45,7 +46,8 @@ class StockMonitor:
         file_menu = tk.Menu(menubar, tearoff=0)
         menubar.add_cascade(label="Файл", menu=file_menu)
         file_menu.add_command(label="Сменить тикер", command=self.change_ticker)
-        file_menu.add_command(label="Мой портфель", command=self.open_portfolio)
+        file_menu.add_command(label="Портфель акций", command=self.open_portfolio)
+        file_menu.add_command(label="Портфель ETF", command=self.open_etf_portfolio)
         file_menu.add_command(label="Калькулятор IBO", command=self.open_calculator)
         file_menu.add_command(label="Калькулятор Шарпа", command=self.open_sharpe_calculator)
         file_menu.add_command(label="Настройки комиссий", command=self.open_commission_settings)
@@ -278,13 +280,16 @@ class StockMonitor:
         ttk.Button(button_frame, text="Очистить график", 
                   command=self.clear_chart).pack(side=tk.LEFT, padx=5)
                   
-        ttk.Button(button_frame, text="Мой портфель", 
-                  command=self.open_portfolio).pack(side=tk.LEFT, padx=5)
-        
+        #ttk.Button(button_frame, text="Мой портфель", 
+        #          command=self.open_portfolio).pack(side=tk.LEFT, padx=5)
         # Кнопка открытия калькулятора
-        ttk.Button(button_frame, text="Калькулятор стоимости", 
-                  command=self.open_calculator).pack(side=tk.LEFT, padx=5)
-        ttk.Button(button_frame, text="Коэффициент Шарпа", command=self.open_sharpe_calculator).pack(side=tk.LEFT, padx=5)
+        #ttk.Button(button_frame, text="Калькулятор стоимости", 
+        #          command=self.open_calculator).pack(side=tk.LEFT, padx=5)
+                  
+        #ttk.Button(button_frame, text="Портфель ETF", 
+        #          command=self.open_etf_portfolio).pack(side=tk.LEFT, padx=5)
+        
+        #ttk.Button(button_frame, text="Коэффициент Шарпа", command=self.open_sharpe_calculator).pack(side=tk.LEFT, padx=5)
         # Добавляем кнопки управления масштабом для каждой вкладки
         self.chart_manager.setup_zoom_buttons(button_frame, 'intraday')
         self.chart_manager.setup_zoom_buttons(button_frame, 'daily')
@@ -309,7 +314,21 @@ class StockMonitor:
         self.root.rowconfigure(0, weight=1)
         main_frame.columnconfigure(0, weight=1)
         main_frame.rowconfigure(5, weight=1)
-    
+    def open_etf_portfolio(self):
+        """Открытие окна портфеля ETF"""
+        try:
+            # Проверяем, существует ли уже окно портфеля ETF
+            if hasattr(self, 'etf_portfolio_window') and self.etf_portfolio_window.window.winfo_exists():
+                self.etf_portfolio_window.window.lift()  # Поднимаем окно на передний план
+                self.etf_portfolio_window.window.focus_force()  # Даем фокус
+            else:
+                # Создаем новое окно портфеля ETF
+                self.etf_portfolio_window = ETFPortfolioWindow(self.root, self.data_handler)
+        except Exception as e:
+            print(f"Ошибка открытия портфеля ETF: {e}")
+            # Создаем новое окно в случае ошибки
+            self.etf_portfolio_window = ETFPortfolioWindow(self.root, self.data_handler)
+        
     def on_ticker_change(self, event=None):
         """Обработчик смены тикера"""
         new_ticker = self.ticker_var.get().strip().upper()

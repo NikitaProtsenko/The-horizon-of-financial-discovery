@@ -127,7 +127,6 @@ class PortfolioWindow:
                   command=self.export_to_csv).pack(side=tk.RIGHT, padx=5)
         ttk.Button(button_frame, text="История операций", 
                   command=self.show_transaction_history).pack(side=tk.RIGHT, padx=5)
-        
         # Таблица портфеля
         table_frame = ttk.Frame(main_frame)
         table_frame.pack(fill=tk.BOTH, expand=True, pady=(0, 10))
@@ -245,7 +244,7 @@ class PortfolioWindow:
             
         except ValueError:
             messagebox.showerror("Ошибка", "Введите корректные числовые значения")
-    
+   
     def record_transaction(self, ticker, operation, quantity, price):
         """Запись операции в историю транзакций"""
         try:
