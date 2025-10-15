@@ -551,7 +551,7 @@ class ETFPortfolioWindow:
             ticker = etf_data['ticker']
             
             # Используем data_handler если он доступен
-            if self.data_handler:
+            if False:
                 # Сохраняем текущий тикер
                 original_ticker = self.data_handler.ticker
                 # Временно меняем тикер
@@ -567,7 +567,7 @@ class ETFPortfolioWindow:
                     return True
             else:
                 # Альтернативный способ получения данных
-                url = f"https://iss.moex.com/iss/engines/stock/markets/shares/boards/TQBR/securities/{ticker}.json"
+                url = f"https://iss.moex.com/iss/engines/stock/markets/shares/boards/TQTF/securities/{ticker}.json"
                 
                 response = requests.get(url, timeout=10)
                 if response.status_code == 200:
