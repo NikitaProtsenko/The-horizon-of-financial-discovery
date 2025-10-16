@@ -704,7 +704,7 @@ class StockMonitor:
     
     def open_portfolio(self):
         """Открытие окна портфеля акций"""
-        from portfolio_window import PortfolioWindow
+        from stock_portfolio.main_window import PortfolioWindow
         PortfolioWindow(self.root, self.data_handler)
 
     def open_sharpe_calculator(self):
