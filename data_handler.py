@@ -41,8 +41,8 @@ class DataHandler:
         if current_time is None:
             current_time = self.get_moscow_time()
         
-        # Торги на Московской бирже: пн-пт с 9:30 до 19:00
-        market_open = time(9, 30)
+        # Торги на Московской бирже: пн-пт с 7:00 до 19:00
+        market_open = time(7, 0)
         market_close = time(19, 0)
         
         current_time_only = current_time.time()

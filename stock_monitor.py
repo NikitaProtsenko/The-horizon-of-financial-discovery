@@ -10,7 +10,7 @@ from data_handler import DataHandler
 from chart_manager import ChartManager
 from calculator_window import CalculatorWindow
 from commission_manager import CommissionManager
-from etf_portfolio_window import ETFPortfolioWindow
+from etf_portfolio.init import ETFPortfolioWindow
 class StockMonitor:
     """
     Основной класс приложения для мониторинга акций.
