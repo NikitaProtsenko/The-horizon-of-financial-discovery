@@ -1,6 +1,8 @@
 # stock_monitor.py
+
 import tkinter as tk
 from tkinter import ttk, messagebox, simpledialog
+
 import threading
 import time
 import json
@@ -11,6 +13,7 @@ from chart_manager import ChartManager
 from calculator_window import CalculatorWindow
 from commission_manager import CommissionManager
 from etf_portfolio.init import ETFPortfolioWindow
+
 class StockMonitor:
     """
     Основной класс приложения для мониторинга акций.
@@ -22,7 +25,6 @@ class StockMonitor:
         self.root = root
         self.root.title("Монитор акций")
         self.root.geometry("1400x800")
-        
         # Инициализация компонентов
         self.current_ticker = "SBER"  # Тикер по умолчанию
         self.data_handler = DataHandler(self.current_ticker)
@@ -32,6 +34,7 @@ class StockMonitor:
         self.auto_update = True   # Флаг автообновления
         
         # Создание интерфейса
+        
         self.create_menu()        # Создание верхнего меню
         self.create_widgets()     # Создание основных виджетов
         self.load_daily_data()    # Загрузка исторических данных

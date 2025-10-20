@@ -154,7 +154,9 @@ class UIComponents:
             ttk.Button(button_frame, text="Экспорт в CSV", 
                       command=self.portfolio_window.export_to_csv).pack(side=tk.RIGHT, padx=5)
             ttk.Button(button_frame, text="История операций", 
-                      command=lambda: self.portfolio_window.show_transaction_history()).pack(side=tk.RIGHT, padx=5) 
+                      command=lambda: self.portfolio_window.show_transaction_history()).pack(side=tk.RIGHT, padx=5)
+            ttk.Button(button_frame, text="Графики портфеля", 
+                      command=lambda: self.portfolio_window.show_portfolio_charts()).pack(side=tk.LEFT, padx=5)                      
     def create_table(self, parent):
         """
         Создание таблицы для отображения портфеля.

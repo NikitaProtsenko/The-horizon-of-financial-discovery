@@ -2,6 +2,7 @@
 import tkinter as tk
 from .portfolio_stock_manager import PortfolioManager
 from .ui_components import UIComponents
+from .chart_manager import ChartManager
 
 class PortfolioWindow:
     def __init__(self, parent, data_handler=None):
@@ -15,7 +16,7 @@ class PortfolioWindow:
         # Менеджеры
         self.portfolio_manager = PortfolioManager(data_handler, self.window)
         self.ui_components = UIComponents(self.window, self.portfolio_manager, self)
-        
+        self.chart_manager = ChartManager(self.portfolio_manager)
         # Создание интерфейса
         self.ui_components.create_widgets()
         
@@ -96,6 +97,9 @@ class PortfolioWindow:
     def focus(self):
         """Активировать окно"""
         self.window.focus_force()
+    def show_portfolio_charts(self):
+        """Показать графики распределения портфеля"""
+        self.chart_manager.show_portfolio_allocation(self.window)
     
     def close(self):
         """Закрытие окна с сохранением данных"""
