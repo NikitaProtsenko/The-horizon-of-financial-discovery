@@ -9,6 +9,7 @@ class UIComponents:
         self.portfolio_window = portfolio_window  # Сохраняем ссылку на PortfolioWindow
         self.tree = None
         self.stats_label = None
+        self.menu_bar = None
         
         # Переменные для ввода
         self.ticker_var = tk.StringVar()
@@ -25,6 +26,9 @@ class UIComponents:
         """
         Создание всех элементов интерфейса портфеля.
         """
+        # Создаем меню первым
+        self.create_menu_bar()
+        
         main_frame = ttk.Frame(self.window, padding="10")
         main_frame.pack(fill=tk.BOTH, expand=True)
         
@@ -32,12 +36,49 @@ class UIComponents:
         self.create_header(main_frame)
         self.create_buy_section(main_frame)
         self.create_sell_section(main_frame)
-        self.create_control_buttons(main_frame)
         self.create_table(main_frame)
         self.create_statistics(main_frame)
         
         # Обновление статистики при запуске
         self.update_statistics()
+    
+    def create_menu_bar(self):
+        """
+        Создание меню сверху вместо кнопок.
+        """
+        self.menu_bar = tk.Menu(self.window)
+        self.window.config(menu=self.menu_bar)
+        
+        # Меню "Операции"
+        operations_menu = tk.Menu(self.menu_bar, tearoff=0)
+        self.menu_bar.add_cascade(label="Операции", menu=operations_menu)
+        operations_menu.add_command(label="Купить/Добавить", command=self.portfolio_window.add_stock)
+        operations_menu.add_command(label="Продать", command=self.portfolio_window.sell_stock)
+        operations_menu.add_separator()
+        operations_menu.add_command(label="Добавить дивиденды", command=lambda: self.portfolio_window.add_dividend_payment())
+        
+        # Меню "Управление"
+        management_menu = tk.Menu(self.menu_bar, tearoff=0)
+        self.menu_bar.add_cascade(label="Управление", menu=management_menu)
+        management_menu.add_command(label="Удалить выбранное", command=self.portfolio_window.delete_selected)
+        management_menu.add_command(label="Очистить портфель", command=self.portfolio_window.clear_portfolio)
+        management_menu.add_separator()
+        management_menu.add_command(label="Настройки комиссий", command=self.portfolio_manager.commission_manager.show_commission_settings)
+        
+        # Меню "Аналитика"
+        analytics_menu = tk.Menu(self.menu_bar, tearoff=0)
+        self.menu_bar.add_cascade(label="Аналитика", menu=analytics_menu)
+        analytics_menu.add_command(label="Обновить все цены", command=self.portfolio_window.update_all_prices)
+        analytics_menu.add_command(label="Сравнить с IMOEX", command=lambda: self.portfolio_window.show_index_comparison())
+        analytics_menu.add_command(label="Графики портфеля", command=lambda: self.portfolio_window.show_portfolio_charts())
+        
+        # Меню "Отчеты"
+        reports_menu = tk.Menu(self.menu_bar, tearoff=0)
+        self.menu_bar.add_cascade(label="Отчеты", menu=reports_menu)
+        reports_menu.add_command(label="История операций", command=lambda: self.portfolio_window.show_transaction_history())
+        reports_menu.add_command(label="История дивидендов", command=lambda: self.portfolio_window.show_dividend_history())
+        reports_menu.add_separator()
+        reports_menu.add_command(label="Экспорт в CSV", command=self.portfolio_window.export_to_csv)
     
     def create_header(self, parent):
         """
@@ -78,6 +119,10 @@ class UIComponents:
         ttk.Label(input_frame, text="Цена покупки:").pack(side=tk.LEFT, padx=2)
         self.buy_price_entry = ttk.Entry(input_frame, textvariable=self.buy_price_var, width=10)
         self.buy_price_entry.pack(side=tk.LEFT, padx=2)
+        
+        # Кнопка покупки
+        ttk.Button(input_frame, text="Купить", 
+                  command=self.portfolio_window.add_stock).pack(side=tk.LEFT, padx=10)
     
     def create_sell_section(self, parent):
         """
@@ -108,55 +153,13 @@ class UIComponents:
         self.sell_price_entry = ttk.Entry(sell_input_frame, textvariable=self.sell_price_var, width=10)
         self.sell_price_entry.pack(side=tk.LEFT, padx=2)
         
+        # Кнопка продажи
+        ttk.Button(sell_input_frame, text="Продать", 
+                  command=self.portfolio_window.sell_stock).pack(side=tk.LEFT, padx=10)
+        
         # Обновляем комбобокс при создании
         self.update_sell_ticker_combo()
     
-    def create_control_buttons(self, parent):
-            """
-            Создание панели управления с кнопками.
-            """
-            button_frame = ttk.Frame(parent)
-            button_frame.pack(fill=tk.X, pady=(0, 10))
-            
-            # Кнопка покупки акций
-            ttk.Button(button_frame, text="Купить/Добавить", 
-                      command=self.portfolio_window.add_stock).pack(side=tk.LEFT, padx=5)
-            
-            # Кнопка продажи акций
-            ttk.Button(button_frame, text="Продать", 
-                      command=self.portfolio_window.sell_stock).pack(side=tk.LEFT, padx=5)
-            
-            # Кнопка настроек комиссий
-            ttk.Button(button_frame, text="Настройки комиссий", 
-                      command=self.portfolio_manager.commission_manager.show_commission_settings).pack(side=tk.LEFT, padx=5)
-            
-            # Кнопка сравнения с индексом - через lambda
-            ttk.Button(button_frame, text="Сравнить с IMOEX", 
-                      command=lambda: self.portfolio_window.show_index_comparison()).pack(side=tk.LEFT, padx=5)
-            
-            # Кнопка обновления цен
-            ttk.Button(button_frame, text="Обновить все цены", 
-                      command=self.portfolio_window.update_all_prices).pack(side=tk.LEFT, padx=5)
-            
-            # Кнопки управления портфелем
-            ttk.Button(button_frame, text="Удалить выбранное", 
-                      command=self.portfolio_window.delete_selected).pack(side=tk.LEFT, padx=5)
-            ttk.Button(button_frame, text="Очистить портфель", 
-                      command=self.portfolio_window.clear_portfolio).pack(side=tk.LEFT, padx=5)
-            
-            # Кнопки дивидендов - через lambda
-            ttk.Button(button_frame, text="Добавить дивиденды", 
-                      command=lambda: self.portfolio_window.add_dividend_payment()).pack(side=tk.LEFT, padx=5)
-            ttk.Button(button_frame, text="История дивидендов", 
-                      command=lambda: self.portfolio_window.show_dividend_history()).pack(side=tk.LEFT, padx=5)
-            
-            # Кнопки экспорта и истории справа - через lambda
-            ttk.Button(button_frame, text="Экспорт в CSV", 
-                      command=self.portfolio_window.export_to_csv).pack(side=tk.RIGHT, padx=5)
-            ttk.Button(button_frame, text="История операций", 
-                      command=lambda: self.portfolio_window.show_transaction_history()).pack(side=tk.RIGHT, padx=5)
-            ttk.Button(button_frame, text="Графики портфеля", 
-                      command=lambda: self.portfolio_window.show_portfolio_charts()).pack(side=tk.LEFT, padx=5)                      
     def create_table(self, parent):
         """
         Создание таблицы для отображения портфеля.
